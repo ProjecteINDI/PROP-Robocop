@@ -4,15 +4,19 @@ import robocode.ScannedRobotEvent;
 import robocode.HitRobotEvent;
 
 public class Robocop extends AdvancedRobot {
-    private double enemyX, enemyY;
+    private double eX, eY;
     private double battlefieldWidth;
     private double battlefieldHeight;
     private double targetX, targetY;
     private boolean enemicDetectat = false;
+    private boolean enemicDet1 = false;
     private double angleOffset = 15;  // Ajuste de ángulo en caso de detección de obstáculo
-    private double edgeMargin = 50;    // Margen de distancia para evitar bordes
-
-    private enum Estat { FASE0, FASE1 };
+    private double edgeMargin = 50;  
+    private double angleRadar;// Margen de distancia para evitar bordes
+    private double distancia;
+    private   double angleCanon;
+    
+    private enum Estat { FASE0, FASE1, FASE2 };
     private Estat estatActual = Estat.FASE0;
 
     @Override
@@ -30,18 +34,29 @@ public class Robocop extends AdvancedRobot {
                     // FASE0: Detectar enemic i calcular cantonada
                     setTurnRadarRight(10.0);  // Gira el radar contínuament
                     if (enemicDetectat) {
-                        estatActual = Estat.FASE1;  // Si ja hem detectat un enemic, canviem a la següent fase
+                        estatActual = Estat.FASE1;
+                        enemicDet1=true;
+                        // Si ja hem detectat un enemic, canviem a la següent fase
                     }
                     break;
 
                 case FASE1:
                     // FASE1: Moure's a la cantonada calculada, evitant obstacles
                     anarACantonada(targetX, targetY);
-                    if (hasArrived(targetX, targetY)) {  // Si hem arribat a la cantonada
-                        estatActual = Estat.FASE0;
+                    if (hasArrived(targetX, targetY)) {  // Si hem arribat a la cantonada  
+                        estatActual = Estat.FASE2;
                         enemicDetectat = false;
                     }
                     break;
+                case FASE2:
+                setTurnRadarRight(10.0);
+                if (enemicDetectat) {
+                    setTurnRadarRight(normAngle(angleRadar));
+                    setTurnGunRight(normAngle(angleCanon));
+                    double potenciaDispar = Math.max(1, Math.min(3, 500 / distancia));
+                    fire(potenciaDispar);
+                }
+                break;
             }
             execute();
         }
@@ -50,20 +65,21 @@ public class Robocop extends AdvancedRobot {
     @Override
     public void onScannedRobot(ScannedRobotEvent e) {
         // Captura les coordenades de l'enemic
-        double angleAbsolut = getHeading() + e.getBearing();
-        enemyX = getX() + Math.sin(Math.toRadians(angleAbsolut)) * e.getDistance();
-        enemyY = getY() + Math.cos(Math.toRadians(angleAbsolut)) * e.getDistance();
-
+        if(enemicDet1==false){
+        double angle = getHeading() + e.getBearing();
+        eX = getX() + Math.sin(Math.toRadians(angle)) * e.getDistance();
+        eY = getY() + Math.cos(Math.toRadians(angle)) * e.getDistance();
+         
         // Apuntar al enemic detectat i disparar
-        double gunTurn = normalizeBearing(angleAbsolut - getGunHeading());
+        double gunTurn = normAngle(angle - getGunHeading());
         setTurnGunRight(gunTurn);
         fire(1);  // Disparar al enemic amb potència de 1
 
         // Calcular la cantonada més allunyada
-        double dist0 = calcularDistancia(0, 0, enemyX, enemyY);
-        double dist1 = calcularDistancia(battlefieldWidth, 0, enemyX, enemyY);
-        double dist2 = calcularDistancia(0, battlefieldHeight, enemyX, enemyY);
-        double dist3 = calcularDistancia(battlefieldWidth, battlefieldHeight, enemyX, enemyY);
+        double dist0 = calcularDistancia(0, 0, eX, eY);
+        double dist1 = calcularDistancia(battlefieldWidth, 0, eX, eY);
+        double dist2 = calcularDistancia(0, battlefieldHeight, eX, eY);
+        double dist3 = calcularDistancia(battlefieldWidth, battlefieldHeight, eX, eY);
 
         if (dist0 > dist1 && dist0 > dist2 && dist0 > dist3) {
             targetX = 0;
@@ -79,7 +95,13 @@ public class Robocop extends AdvancedRobot {
             targetY = battlefieldHeight;
         }
 
-        enemicDetectat = true;  // Activem la següent fase
+        enemicDetectat = true;  
+        }
+         if(enemicDet1==true){
+             angleRadar = getHeading() + e.getBearing()- getRadarHeading();
+             distancia= e.getDistance();
+             angleCanon = getHeading() + e.getBearing() - getGunHeading(); 
+         }
     }
 
     @Override
@@ -96,7 +118,7 @@ public class Robocop extends AdvancedRobot {
             angleCapACantonada -= angleOffset;
         }
 
-        setTurnRight(normalizeBearing(angleCapACantonada));
+        setTurnRight(normAngle(angleCapACantonada));
         fire(1);  // Disparar a l'enemic en cas de col·lisió
         setAhead(100);  // Mou-te 100 unitats en la direcció ajustada
     }
@@ -106,7 +128,7 @@ public class Robocop extends AdvancedRobot {
         double currentX = getX();
         double currentY = getY();
 
-        // Comprovar si s'apropa al bord
+        /*// Comprovar si s'apropa al bord
         if (currentX <= edgeMargin) {
             // Està a prop del costat esquerre
             setTurnRight(90);  // Gira a la dreta
@@ -119,11 +141,11 @@ public class Robocop extends AdvancedRobot {
         } else if (currentY >= battlefieldHeight - edgeMargin) {
             // Està a prop del costat inferior
             setTurnLeft(90);  // Gira a l'esquerra
-        } else {
+        } else {*/
             // Mou-te cap a la cantonada
-            setTurnRight(normalizeBearing(Math.toDegrees(Math.atan2(targetX - currentX, targetY - currentY)) - getHeading()));
-            setAhead(Math.hypot(targetX - currentX, targetY - currentY));  // Després es mou cap endavant
-        }
+            setTurnRight(normAngle(Math.toDegrees(Math.atan2(targetX - currentX, targetY - currentY)) - getHeading()));
+            setAhead(Math.hypot(targetX - currentX, targetY - currentY)-25);  // Després es mou cap endavant
+        //}
     }
 
     private double calcularDistancia(double x1, double y1, double x2, double y2) {
@@ -131,7 +153,7 @@ public class Robocop extends AdvancedRobot {
     }
 
     // Funció per normalitzar un angle en el rang [-180, 180]
-    public double normalizeBearing(double angle) {
+    public double normAngle(double angle) {
         while (angle > 180) angle -= 360;
         while (angle < -180) angle += 360;
         return angle;
