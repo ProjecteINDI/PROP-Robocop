@@ -11,11 +11,11 @@ public class Robocop extends AdvancedRobot {
     private boolean enemicDetectat = false;
     private boolean enemicDet1 = false;
     private double angleOffset = 15;  // Ajuste de ángulo en caso de detección de obstáculo
-    private double edgeMargin = 50;  
-    private double angleRadar;// Margen de distancia para evitar bordes
+    private double edgeMargin = 50;   // Margen para evitar bordes
+    private double angleRadar;
     private double distancia;
-    private   double angleCanon;
-    
+    private double angleCanon;
+
     private enum Estat { FASE0, FASE1, FASE2 };
     private Estat estatActual = Estat.FASE0;
 
@@ -32,31 +32,37 @@ public class Robocop extends AdvancedRobot {
             switch (estatActual) {
                 case FASE0:
                     // FASE0: Detectar enemic i calcular cantonada
-                    setTurnRadarRight(10.0);  // Gira el radar contínuament
+                    setTurnRadarRight(10);  // Gira el radar contínuament
                     if (enemicDetectat) {
                         estatActual = Estat.FASE1;
-                        enemicDet1=true;
-                        // Si ja hem detectat un enemic, canviem a la següent fase
+                        enemicDet1 = true;
                     }
                     break;
 
                 case FASE1:
-                    // FASE1: Moure's a la cantonada calculada, evitant obstacles
-                    anarACantonada(targetX, targetY);
-                    if (hasArrived(targetX, targetY)) {  // Si hem arribat a la cantonada  
+                    // FASE1: Dirigir al robot en línea recta hacia la esquina calculada
+                    dirigirACantonada(targetX, targetY);
+                    setTurnRadarRight(normAngle(getHeading() - getRadarHeading()));  // Mantener el radar apuntando hacia el frente
+                    if (hasArrived(targetX, targetY)) {
+                        enemicDetectat = false;  // Reiniciar la detección
                         estatActual = Estat.FASE2;
-                        enemicDetectat = false;
                     }
                     break;
+                    
                 case FASE2:
-                setTurnRadarRight(10.0);
-                if (enemicDetectat) {
-                    setTurnRadarRight(normAngle(angleRadar));
-                    setTurnGunRight(normAngle(angleCanon));
-                    double potenciaDispar = Math.max(1, Math.min(3, 500 / distancia));
-                    fire(potenciaDispar);
-                }
-                break;
+                    // FASE2: Comportamiento en la esquina (disparo)
+                    setTurnRadarRight(10);  // Vuelve a buscar enemigos
+
+                    if (enemicDetectat) {
+                        // Mantener el radar y el cañón apuntando al enemigo
+                        setTurnRadarRight(normAngle(angleRadar));  // Ajustar el radar
+                        setTurnGunRight(normAngle(angleCanon));  // Ajustar el cañón
+
+                        // Calcular la potencia de disparo
+                        double potenciaDispar = Math.max(1, Math.min(3, 500 / distancia));
+                        fire(potenciaDispar);  // Disparar
+                    }
+                    break;
             }
             execute();
         }
@@ -64,88 +70,78 @@ public class Robocop extends AdvancedRobot {
 
     @Override
     public void onScannedRobot(ScannedRobotEvent e) {
-        // Captura les coordenades de l'enemic
-        if(enemicDet1==false){
+        if (estatActual == Estat.FASE1) {
+            // Si el robot detectado está enfrente mientras nos movemos, esquivarlo
+            if (Math.abs(e.getBearing()) < 10) {  // Si el enemigo está directamente al frente
+                esquivarObstaculo(e.getBearing());  // Decidir si esquivar hacia la derecha o izquierda
+            }
+        }
+
+        // Captura las coordenadas del enemigo y calcula la esquina más lejana
         double angle = getHeading() + e.getBearing();
         eX = getX() + Math.sin(Math.toRadians(angle)) * e.getDistance();
         eY = getY() + Math.cos(Math.toRadians(angle)) * e.getDistance();
-         
-        // Apuntar al enemic detectat i disparar
-        double gunTurn = normAngle(angle - getGunHeading());
-        setTurnGunRight(gunTurn);
-        fire(1);  // Disparar al enemic amb potència de 1
 
-        // Calcular la cantonada més allunyada
-        double dist0 = calcularDistancia(0, 0, eX, eY);
-        double dist1 = calcularDistancia(battlefieldWidth, 0, eX, eY);
-        double dist2 = calcularDistancia(0, battlefieldHeight, eX, eY);
-        double dist3 = calcularDistancia(battlefieldWidth, battlefieldHeight, eX, eY);
+        if (!enemicDet1) {
+            // Calcular la esquina más alejada, ajustando las coordenadas para evitar los bordes
+            double dist0 = calcularDistancia(50, 50, eX, eY);
+            double dist1 = calcularDistancia(battlefieldWidth - 50, 50, eX, eY);
+            double dist2 = calcularDistancia(50, battlefieldHeight - 50, eX, eY);
+            double dist3 = calcularDistancia(battlefieldWidth - 50, battlefieldHeight - 50, eX, eY);
 
-        if (dist0 > dist1 && dist0 > dist2 && dist0 > dist3) {
-            targetX = 0;
-            targetY = 0;
-        } else if (dist1 > dist2 && dist1 > dist3) {
-            targetX = battlefieldWidth;
-            targetY = 0;
-        } else if (dist2 > dist3) {
-            targetX = 0;
-            targetY = battlefieldHeight;
-        } else {
-            targetX = battlefieldWidth;
-            targetY = battlefieldHeight;
+            if (dist0 > dist1 && dist0 > dist2 && dist0 > dist3) {
+                targetX = 50;
+                targetY = 50;
+            } else if (dist1 > dist2 && dist1 > dist3) {
+                targetX = battlefieldWidth - 50;
+                targetY = 50;
+            } else if (dist2 > dist3) {
+                targetX = 50;
+                targetY = battlefieldHeight - 50;
+            } else {
+                targetX = battlefieldWidth - 50;
+                targetY = battlefieldHeight - 50;
+            }
+
+            enemicDetectat = true;  
         }
 
-        enemicDetectat = true;  
+        // Si ya hemos detectado un enemigo, ajustamos el radar y el cañón
+        if (enemicDet1) {
+            angleRadar = getHeading() + e.getBearing() - getRadarHeading();
+            distancia = e.getDistance();
+            angleCanon = getHeading() + e.getBearing() - getGunHeading(); 
+            enemicDetectat = true; // Asegúrate de que esta línea esté activa para mantener la detección
         }
-         if(enemicDet1==true){
-             angleRadar = getHeading() + e.getBearing()- getRadarHeading();
-             distancia= e.getDistance();
-             angleCanon = getHeading() + e.getBearing() - getGunHeading(); 
-         }
     }
 
     @Override
     public void onHitRobot(HitRobotEvent e) {
         // Si trobem un altre robot en el camí, modifiquem l'angle d'aproximació
-        double angleCapACantonada = Math.toDegrees(Math.atan2(targetX - getX(), targetY - getY())) - getHeading();
-
-        // Canvia el angle depenent de la posició del enemic
-        if (e.getBearing() > -90 && e.getBearing() < 90) {
-            // Si el enemic està al davant, canviar l'angle per evitar col·lisions
-            angleCapACantonada += angleOffset;
-        } else {
-            // Si el enemic està darrere, canviar l'angle cap a l'altre costat
-            angleCapACantonada -= angleOffset;
-        }
-
-        setTurnRight(normAngle(angleCapACantonada));
-        fire(1);  // Disparar a l'enemic en cas de col·lisió
-        setAhead(100);  // Mou-te 100 unitats en la direcció ajustada
+        esquivarObstaculo(e.getBearing());
     }
 
-    public void anarACantonada(double targetX, double targetY) {
-        // Ajustar el moviment per evitar bordes
+    // Método para esquivar obstáculos (decidir si a la derecha o izquierda)
+    public void esquivarObstaculo(double bearing) {
+        if (bearing > 0) {
+            // Si el obstáculo está a la derecha, girar hacia la izquierda para esquivar
+            setTurnLeft(angleOffset);
+        } else {
+            // Si el obstáculo está a la izquierda, girar hacia la derecha para esquivar
+            setTurnRight(angleOffset);
+        }
+        setAhead(50);  // Avanzar para esquivar el obstáculo
+    }
+
+    // Movimiento en línea recta hacia la esquina
+    public void dirigirACantonada(double targetX, double targetY) {
         double currentX = getX();
         double currentY = getY();
 
-        /*// Comprovar si s'apropa al bord
-        if (currentX <= edgeMargin) {
-            // Està a prop del costat esquerre
-            setTurnRight(90);  // Gira a la dreta
-        } else if (currentX >= battlefieldWidth - edgeMargin) {
-            // Està a prop del costat dret
-            setTurnLeft(90);  // Gira a l'esquerra
-        } else if (currentY <= edgeMargin) {
-            // Està a prop del costat superior
-            setTurnRight(90);  // Gira a la dreta
-        } else if (currentY >= battlefieldHeight - edgeMargin) {
-            // Està a prop del costat inferior
-            setTurnLeft(90);  // Gira a l'esquerra
-        } else {*/
-            // Mou-te cap a la cantonada
-            setTurnRight(normAngle(Math.toDegrees(Math.atan2(targetX - currentX, targetY - currentY)) - getHeading()));
-            setAhead(Math.hypot(targetX - currentX, targetY - currentY)-25);  // Després es mou cap endavant
-        //}
+        // Calcular el ángulo hacia la esquina
+        double angleCapACantonada = Math.toDegrees(Math.atan2(targetX - currentX, targetY - currentY)) - getHeading();
+        setTurnRight(normAngle(angleCapACantonada));
+        setAhead(Math.hypot(targetX - currentX, targetY - currentY) - 25);  // Restar un pequeño margen para evitar bordes
     }
 
     private double calcularDistancia(double x1, double y1, double x2, double y2) {
@@ -161,6 +157,6 @@ public class Robocop extends AdvancedRobot {
 
     // Comprova si el robot ha arribat a la cantonada
     private boolean hasArrived(double targetX, double targetY) {
-        return Math.abs(getX() - targetX) < 50 && Math.abs(getY() - targetY) < 50;  // Tolerància de 20 unitats
+        return Math.abs(getX() - targetX) < 50 && Math.abs(getY() - targetY) < 50;  // Tolerància de 50 unitats
     }
 }
