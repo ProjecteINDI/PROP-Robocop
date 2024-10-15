@@ -10,9 +10,7 @@ public class Robocop extends AdvancedRobot {
     public double battlefieldHeight;
     public double targetX, targetY;
     public boolean enemicDetectat = false;
-    public boolean enemicDet1 = false;
-    public double angleOffset = 15;  // Ajuste de ángulo en caso de detección de obstáculo
-    public double edgeMargin = 50;   // Margen para evitar bordes
+    
     public double angleRadar;
     public double distancia;
     public double angleCanon;
@@ -31,7 +29,7 @@ public class Robocop extends AdvancedRobot {
         estatActual = new Estat0(this);
         while (true) {
             estatActual.execute();
-            execute();  // Este método debe ejecutarse continuamente para que el robot actúe
+            execute(); 
         }
     }
 
@@ -49,15 +47,7 @@ public class Robocop extends AdvancedRobot {
         this.estatActual = newEstat;
     }
 
-    // Métodos auxiliares
-    public void esquivarObstaculo(double bearing) {
-        if (bearing > 0) {
-            setTurnLeft(angleOffset);
-        } else {
-            setTurnRight(angleOffset);
-        }
-        setAhead(50);  
-    }
+   
 
     public void dirigirACantonada(double targetX, double targetY) {
         double currentX = getX();

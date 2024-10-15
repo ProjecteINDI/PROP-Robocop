@@ -26,23 +26,23 @@ public class Estat0 implements Estat {
         robot.eX = robot.getX() + Math.sin(Math.toRadians(angle)) * e.getDistance();
         robot.eY = robot.getY() + Math.cos(Math.toRadians(angle)) * e.getDistance();
 
-        double dist0 = robot.calcularDistancia(50, 50, robot.eX, robot.eY);
-        double dist1 = robot.calcularDistancia(robot.battlefieldWidth - 50, 50, robot.eX, robot.eY);
-        double dist2 = robot.calcularDistancia(50, robot.battlefieldHeight - 50, robot.eX, robot.eY);
-        double dist3 = robot.calcularDistancia(robot.battlefieldWidth - 50, robot.battlefieldHeight - 50, robot.eX, robot.eY);
+        double dist0 = robot.calcularDistancia(0, 0, robot.eX, robot.eY);
+        double dist1 = robot.calcularDistancia(robot.battlefieldWidth, 0, robot.eX, robot.eY);
+        double dist2 = robot.calcularDistancia(0, robot.battlefieldHeight , robot.eX, robot.eY);
+        double dist3 = robot.calcularDistancia(robot.battlefieldWidth , robot.battlefieldHeight , robot.eX, robot.eY);
 
         if (dist0 > dist1 && dist0 > dist2 && dist0 > dist3) {
-            robot.targetX = 50;
-            robot.targetY = 50;
+            robot.targetX = 20;
+            robot.targetY = 20;
         } else if (dist1 > dist2 && dist1 > dist3) {
-            robot.targetX = robot.battlefieldWidth - 50;
-            robot.targetY = 50;
+            robot.targetX = robot.battlefieldWidth - 20;
+            robot.targetY = 20;
         } else if (dist2 > dist3) {
-            robot.targetX = 50;
-            robot.targetY = robot.battlefieldHeight - 50;
+            robot.targetX = 20;
+            robot.targetY = robot.battlefieldHeight - 20;
         } else {
-            robot.targetX = robot.battlefieldWidth - 50;
-            robot.targetY = robot.battlefieldHeight - 50;
+            robot.targetX = robot.battlefieldWidth - 20;
+            robot.targetY = robot.battlefieldHeight - 20;
         }
 
         robot.enemicDetectat = true;
@@ -50,6 +50,5 @@ public class Estat0 implements Estat {
 
     @Override
     public void onHitRobot(HitRobotEvent e) {
-        // No hace nada en Fase 0
     }
 }

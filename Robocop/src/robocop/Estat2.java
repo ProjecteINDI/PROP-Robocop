@@ -9,7 +9,6 @@ public class Estat2 implements Estat {
     public Estat2(Robocop robot) {
         this.robot = robot;
     }
-
     @Override
     public void execute() {
         robot.setTurnRadarRight(10);  // Buscar enemigos
@@ -33,6 +32,5 @@ public class Estat2 implements Estat {
 
     @Override
     public void onHitRobot(HitRobotEvent e) {
-        robot.esquivarObstaculo(e.getBearing());
     }
 }
