@@ -11,22 +11,21 @@ public class Estat2 implements Estat {
     }
     @Override
     public void execute() {
-        robot.setTurnRadarRight(10);  // Buscar enemigos
+        robot.setTurnRadarRight(10);  // Girem el radar en busca d'enemics 
         robot.execute();
     }
 
     @Override
     public void onScannedRobot(ScannedRobotEvent e) {
-        // Ajustar radar y cañón
-        robot.angleRadar = robot.getHeading() + e.getBearing() - robot.getRadarHeading();
-        robot.angleCanon = robot.getHeading() + e.getBearing() - robot.getGunHeading();
+        robot.angleRadar = robot.getHeading() + e.getBearing() - robot.getRadarHeading(); //Angle que ha de girar el radar per apuntar a l'enemic
+        robot.angleCanon = robot.getHeading() + e.getBearing() - robot.getGunHeading(); //Angle que ha de girar el rcanó per apuntar a l'enemic
         robot.distancia = e.getDistance();
 
-        robot.setTurnRadarRight(robot.normAngle(robot.angleRadar));
-        robot.setTurnGunRight(robot.normAngle(robot.angleCanon));
+        robot.setTurnRadarRight(robot.normAngle(robot.angleRadar));//fixem el radar a l'enemic
+        robot.setTurnGunRight(robot.normAngle(robot.angleCanon));// fixem el canó a l'enemic
 
         // Disparar
-        double potenciaDispar = Math.max(1, Math.min(3, 500 / robot.distancia));
+        double potenciaDispar =  Math.min(3, 500 / robot.distancia);
         robot.fire(potenciaDispar);
     }
 

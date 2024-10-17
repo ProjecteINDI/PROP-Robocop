@@ -63,11 +63,11 @@ public class Robocop extends AdvancedRobot {
         return angle;
     }
 
-    public boolean hasArrived(double targetX, double targetY) {
+    public boolean cantonada(double targetX, double targetY) {
         return Math.abs(getX() - targetX) < 50 && Math.abs(getY() - targetY) < 50;  
     }
 
     public double calcularDistancia(double x1, double y1, double x2, double y2) {
-        return Math.sqrt((x2 - x1) * (x2 - y1) + (y2 - y1) * (y2 - y1));
+        return Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
     }
 }

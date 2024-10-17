@@ -12,7 +12,7 @@ public class Estat0 implements Estat {
 
     @Override
     public void execute() {
-        robot.setTurnRadarRight(10);  // Gira el radar continuamente
+        robot.setTurnRadarRight(10);  // Girem el radar continuament
         if (robot.enemicDetectat) {
             robot.changeEstat(new Estat1(robot));
         }
@@ -21,11 +21,11 @@ public class Estat0 implements Estat {
 
     @Override
     public void onScannedRobot(ScannedRobotEvent e) {
-        // Captura las coordenadas del enemigo y calcula la esquina más lejana
         double angle = robot.getHeading() + e.getBearing();
-        robot.eX = robot.getX() + Math.sin(Math.toRadians(angle)) * e.getDistance();
-        robot.eY = robot.getY() + Math.cos(Math.toRadians(angle)) * e.getDistance();
-
+        robot.eX = robot.getX() + Math.sin(Math.toRadians(angle)) * e.getDistance(); // Distancia del enemic en el eix X amb el nostrte robot
+        robot.eY = robot.getY() + Math.cos(Math.toRadians(angle)) * e.getDistance(); // Distancia del enemic en el eix Y amb el nostrte robot
+        
+        //distancia a cada una de les cantonades
         double dist0 = robot.calcularDistancia(0, 0, robot.eX, robot.eY);
         double dist1 = robot.calcularDistancia(robot.battlefieldWidth, 0, robot.eX, robot.eY);
         double dist2 = robot.calcularDistancia(0, robot.battlefieldHeight , robot.eX, robot.eY);

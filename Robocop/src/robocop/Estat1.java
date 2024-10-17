@@ -5,7 +5,6 @@ import robocode.HitRobotEvent;
 
 public class Estat1 implements Estat {
     private Robocop robot;
-    private final double MARGEN = 20;  // Margen de seguridad para evitar los límites del campo
 
     public Estat1(Robocop robot) {
         this.robot = robot;
@@ -24,36 +23,36 @@ public class Estat1 implements Estat {
         robot.enemicDetectat = false;
 
         if (esquivar) {
-            double angleCapACoordenadaEsquive = Math.toDegrees(Math.atan2(esquivarTargetX - robot.getX(), esquivarTargetY - robot.getY())) - robot.getHeading();
-            robot.setTurnRight(robot.normAngle(angleCapACoordenadaEsquive));
-            robot.setAhead(Math.hypot(esquivarTargetX - robot.getX(), esquivarTargetY - robot.getY()) - 10);
+            double angleEsquiva = Math.toDegrees(Math.atan2(esquivarTargetX - robot.getX(), esquivarTargetY - robot.getY())) - robot.getHeading(); //angle a esquivar
+            robot.setTurnRight(robot.normAngle(angleEsquiva));
+            robot.setAhead(Math.hypot(esquivarTargetX - robot.getX(), esquivarTargetY - robot.getY()) - 10); //avancem la distancia a esquivar
 
-            if (Math.abs(robot.getX() - esquivarTargetX) < 20 && Math.abs(robot.getY() - esquivarTargetY) < 20) {
+            if (Math.abs(robot.getX() - esquivarTargetX) < 20 && Math.abs(robot.getY() - esquivarTargetY) < 20) {// en cas que hagi avançat tota la distancia, tornem al cami cap a la cantonada
                 esquivar = false;
                 esquivarCompletado = true;
                 robot.dirigirACantonada(robot.targetX, robot.targetY);
             }
-        } else {
+        } 
+        else {
             robot.dirigirACantonada(robot.targetX, robot.targetY);
         }
 
         if (chocar) {
-            // Decidir si girar a la izquierda o derecha basándonos en la dirección del enemigo
             if (chocaDir > 0) {
-                // Si el enemigo está a la derecha, girar hacia la izquierda
+                // Si l'enemic es a la dreta girem a l'esquerra
                 robot.setTurnLeft(90);
             } else {
-                // Si el enemigo está a la izquierda, girar hacia la derecha
+                // Si l'enemic es a la esquerra girem a la dreta
                 robot.setTurnRight(90);
             }
 
-            robot.setAhead(100);  // Avanza para alejarse de la colisión
-            chocar = false;  // Resetear la bandera después de girar
+            robot.setAhead(100);
+            chocar = false; 
         }
 
         robot.setTurnRadarRight(robot.normAngle(robot.getHeading() - robot.getRadarHeading()));
 
-        if (robot.hasArrived(robot.targetX, robot.targetY)) {
+        if (robot.cantonada(robot.targetX, robot.targetY)) {
             robot.changeEstat(new Estat2(robot));
         }
 
@@ -62,7 +61,7 @@ public class Estat1 implements Estat {
 
     @Override
     public void onScannedRobot(ScannedRobotEvent e) {
-        if (Math.abs(e.getBearing()) < 10 && e.getDistance() <= 200 && !esquivarCompletado) {
+        if (Math.abs(e.getBearing()) < 10 && e.getDistance() <= 200 && !esquivarCompletado) {//si tenim un enemic en el nostra cami i si estem a una distancia mes propera de 200 d'aquest
             esquivar = true;
             dis = e.getDistance();
 
@@ -70,35 +69,31 @@ public class Estat1 implements Estat {
             distanciaTangente = Math.tan(Math.toRadians(angleEsquivarDerecha)) * dis;
 
             double angleDerecha = robot.getHeading() + 40;
-            esquivarTargetX = robot.getX() + Math.sin(Math.toRadians(angleDerecha)) * distanciaTangente;
-            esquivarTargetY = robot.getY() + Math.cos(Math.toRadians(angleDerecha)) * distanciaTangente;
+            esquivarTargetX = robot.getX() + Math.sin(Math.toRadians(angleDerecha)) * distanciaTangente; //distancia en el eix x que ens hem de moure per esquivar
+            esquivarTargetY = robot.getY() + Math.cos(Math.toRadians(angleDerecha)) * distanciaTangente; //distancia en el eix y que ens hem de moure per esquivar
 
-            // Verificar si las coordenadas están fuera del campo de batalla (con margen de seguridad)
-            if (esquivarTargetX < MARGEN || esquivarTargetX > robot.battlefieldWidth - MARGEN || 
-                esquivarTargetY < MARGEN || esquivarTargetY > robot.battlefieldHeight - MARGEN) {
-                // Si las coordenadas de la derecha están fuera, calcular el esquive hacia la izquierda
-                robot.setDebugProperty("Esquivar", "Ir a la izquierda");
+            // Verifiquem que les coordenades desti per a esquivar no estiguin fora del camp
+            if (esquivarTargetX < 20 || esquivarTargetX > robot.battlefieldWidth - 20 || 
+                esquivarTargetY < 20 || esquivarTargetY > robot.battlefieldHeight - 20) {
+                // En cas que les coordenades de la dreta estiguin fora, esquivem cap a l'esquerra
                 double angleIzquierda = robot.getHeading() - 40;
-                esquivarTargetX = robot.getX() + Math.sin(Math.toRadians(angleIzquierda)) * distanciaTangente;
-                esquivarTargetY = robot.getY() + Math.cos(Math.toRadians(angleIzquierda)) * distanciaTangente;
+                esquivarTargetX = robot.getX() + Math.sin(Math.toRadians(angleIzquierda)) * distanciaTangente; //distancia en el eix x que ens hem de moure per esquivar
+                esquivarTargetY = robot.getY() + Math.cos(Math.toRadians(angleIzquierda)) * distanciaTangente; //distancia en el eix y que ens hem de moure per esquivar
 
-                // Girar hacia la izquierda
-                robot.setTurnLeft(40);
+                robot.setTurnLeft(40);//fem el gir cap a l'esquerra
             } else {
-                // Ir a la derecha
-                robot.setDebugProperty("Esquivar", "Ir a la derecha");
+                // En altre cas cap a la derecha
                 robot.setTurnRight(40);
             }
 
-            // Avanzar hacia el objetivo calculado
+            // Avencem cap el objectiu per a esquivar
             robot.setAhead(distanciaTangente);
         }
     }
 
     @Override
     public void onHitRobot(HitRobotEvent e) {
-        // Almacenar la dirección del robot enemigo cuando chocamos
         chocar = true;
-        chocaDir = e.getBearing();  // Guardar el bearing del robot con el que chocamos
+        chocaDir = e.getBearing();  // Guardem el bearing del robot amb el que choquem
     }
 }
