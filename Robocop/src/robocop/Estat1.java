@@ -5,6 +5,7 @@ import robocode.HitRobotEvent;
 
 public class Estat1 implements Estat {
     private Robocop robot;
+    private final double MARGEN = 20;  // Margen de seguridad para evitar los límites del campo
 
     public Estat1(Robocop robot) {
         this.robot = robot;
@@ -16,8 +17,7 @@ public class Estat1 implements Estat {
     public double distanciaTangente;
     public double esquivarTargetX, esquivarTargetY;
     public boolean chocar = false;
-    public double chocaDir;
-    public double distanciaInicialChoca; // Distancia inicial cuando choca
+    public double chocaDir = 0;  // Guardar la dirección del enemigo al chocar
 
     @Override
     public void execute() {
@@ -38,24 +38,17 @@ public class Estat1 implements Estat {
         }
 
         if (chocar) {
-            // Si el enemigo está a la derecha (bearing positivo), giramos hacia la izquierda
+            // Decidir si girar a la izquierda o derecha basándonos en la dirección del enemigo
             if (chocaDir > 0) {
-                robot.setTurnLeft(20);  // Giramos 90 grados hacia la izquierda
+                // Si el enemigo está a la derecha, girar hacia la izquierda
+                robot.setTurnLeft(90);
             } else {
-                robot.setTurnRight(20);  // Giramos 90 grados hacia la derecha
+                // Si el enemigo está a la izquierda, girar hacia la derecha
+                robot.setTurnRight(90);
             }
 
-            // Avanzar o retroceder para alejarnos del enemigo
-            robot.setAhead(80);  // Avanza 100 unidades para alejarse
-
-            // Verificamos si hemos avanzado lo suficiente para alejarnos del robot con el que chocamos
-            double distanciaActual = robot.calcularDistancia(robot.getX(), robot.getY(), robot.getX() + Math.cos(Math.toRadians(robot.getHeading())), robot.getY() + Math.sin(Math.toRadians(robot.getHeading())));
-
-            // Si ya nos hemos alejado una cantidad suficiente, desactivamos la bandera "chocar"
-            if (distanciaActual - distanciaInicialChoca > 20) {  // Suponemos que nos alejamos al menos 50 unidades
-                chocar = false;  // Desactivamos la bandera de colisión
-                robot.dirigirACantonada(robot.targetX, robot.targetY);  // Volvemos a la esquina
-            }
+            robot.setAhead(100);  // Avanza para alejarse de la colisión
+            chocar = false;  // Resetear la bandera después de girar
         }
 
         robot.setTurnRadarRight(robot.normAngle(robot.getHeading() - robot.getRadarHeading()));
@@ -80,9 +73,11 @@ public class Estat1 implements Estat {
             esquivarTargetX = robot.getX() + Math.sin(Math.toRadians(angleDerecha)) * distanciaTangente;
             esquivarTargetY = robot.getY() + Math.cos(Math.toRadians(angleDerecha)) * distanciaTangente;
 
-            // Verificar si las coordenadas están fuera del campo de batalla
-            if (esquivarTargetX < 0 || esquivarTargetX > robot.battlefieldWidth || esquivarTargetY < 0 || esquivarTargetY > robot.battlefieldHeight) {
+            // Verificar si las coordenadas están fuera del campo de batalla (con margen de seguridad)
+            if (esquivarTargetX < MARGEN || esquivarTargetX > robot.battlefieldWidth - MARGEN || 
+                esquivarTargetY < MARGEN || esquivarTargetY > robot.battlefieldHeight - MARGEN) {
                 // Si las coordenadas de la derecha están fuera, calcular el esquive hacia la izquierda
+                robot.setDebugProperty("Esquivar", "Ir a la izquierda");
                 double angleIzquierda = robot.getHeading() - 40;
                 esquivarTargetX = robot.getX() + Math.sin(Math.toRadians(angleIzquierda)) * distanciaTangente;
                 esquivarTargetY = robot.getY() + Math.cos(Math.toRadians(angleIzquierda)) * distanciaTangente;
@@ -90,7 +85,8 @@ public class Estat1 implements Estat {
                 // Girar hacia la izquierda
                 robot.setTurnLeft(40);
             } else {
-                // Girar hacia la derecha
+                // Ir a la derecha
+                robot.setDebugProperty("Esquivar", "Ir a la derecha");
                 robot.setTurnRight(40);
             }
 
@@ -101,8 +97,8 @@ public class Estat1 implements Estat {
 
     @Override
     public void onHitRobot(HitRobotEvent e) {
+        // Almacenar la dirección del robot enemigo cuando chocamos
         chocar = true;
-        chocaDir = e.getBearing();
-        distanciaInicialChoca = 10;  // Distancia inicial cuando choca
+        chocaDir = e.getBearing();  // Guardar el bearing del robot con el que chocamos
     }
 }
