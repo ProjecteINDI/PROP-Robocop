@@ -5,9 +5,9 @@ import robocode.HitRobotEvent;
 import robocode.MessageEvent;
 
 public class Estat2 implements Estat {
-    private Robocop robot;
+    private Roboleader robot;
 
-    public Estat2(Robocop robot) {
+    public Estat2(Roboleader robot) {
         this.robot = robot;
     }
     @Override
@@ -25,5 +25,9 @@ public class Estat2 implements Estat {
     }
     @Override
     public void onMessageReceived(MessageEvent e) {
+    }
+    @Override
+    public void onPaint(java.awt.Graphics2D g) {
+        
     }
 }

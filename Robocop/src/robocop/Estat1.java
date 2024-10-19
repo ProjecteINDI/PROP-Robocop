@@ -6,7 +6,7 @@ import robocode.HitRobotEvent;
 public class Estat1 implements Estat {
     private Robocop robot;
 
-    public Estat1(Robocop robot) {
+    public Estat1(robocop.Robocop robot) {
         this.robot = robot;
     }
 
