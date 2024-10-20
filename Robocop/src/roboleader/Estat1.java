@@ -10,10 +10,13 @@ public class Estat1 implements Estat {
     private Roboleader robot;
     private List<String> jerarquia; // Lista de la jerarquía de robots
     private int miPosicion;         // Posición del robot en la jerarquía
+    private boolean sentidoHorario = true; // Controla si el movimiento es en sentido horario o antihorario
+    private long tiempoCambio;      // Controla el tiempo del último cambio de roles
 
     // Coordenadas de las esquinas del rectángulo
     private double[][] esquinas;
-    private int esquinaActual = 0; // Índice de la esquina hacia la cual se dirige el robot
+    private int esquinaActual = -1; // Índice de la esquina hacia la cual se dirige el robot (se inicializa en -1 para forzar la selección al inicio)
+    private boolean esquinaInicialSeleccionada = false; // Bandera para asegurarse de que se seleccione la esquina al inicio
 
     // Variables para mantener distancia prudencial
     private final double distanciaMinima = 100; // Distancia mínima de seguridad
@@ -34,20 +37,76 @@ public class Estat1 implements Estat {
             {robot.battlefieldWidth - marginX, robot.battlefieldHeight - marginY}, // Esquina superior derecha
             {marginX, robot.battlefieldHeight - marginY}                // Esquina superior izquierda
         };
+
+        tiempoCambio = System.currentTimeMillis(); // Inicializa el tiempo del primer cambio de roles
     }
 
     @Override
     public void execute() {
-        // Moverse hacia el objetivo dependiendo de si es el líder o sigue a otro robot
+        // Verificar si han pasado 15 segundos para invertir roles y sentido
+        if ((System.currentTimeMillis() - tiempoCambio) >= 15000) {
+            invertirRolesYSentido(); // Invertir roles y sentido de rotación
+            tiempoCambio = System.currentTimeMillis(); // Reiniciar el temporizador
+        }
+
         if (miPosicion == 0) {
-            // Si es el líder, continúa moviéndose a las esquinas
-            continuarTrayectoria();
+            if (!esquinaInicialSeleccionada) {
+                seleccionarEsquinaMasCercana(); // Seleccionar la esquina más cercana al inicio
+                esquinaInicialSeleccionada = true; // Asegurarse de no volver a seleccionar
+            }
+            continuarTrayectoria(); // Moverse por el rectángulo
         } else {
-            // Seguir al robot anterior manteniendo distancia prudencial
-            seguirAntecesor();
+            seguirAntecesor(); // Los demás robots siguen al líder
         }
 
         robot.execute();
+    }
+
+    // Detecta si el robot ha llegado a la esquina actual
+    private boolean haLlegadoAEsquina(double targetX, double targetY) {
+        return robot.calcularDistancia(robot.getX(), robot.getY(), targetX, targetY) < 25;
+    }
+
+    // Selecciona la esquina más cercana al robot al inicio
+    private void seleccionarEsquinaMasCercana() {
+        double dist0 = robot.calcularDistancia(esquinas[0][0], esquinas[0][1], robot.getX(), robot.getY());
+        double dist1 = robot.calcularDistancia(esquinas[1][0], esquinas[1][1], robot.getX(), robot.getY());
+        double dist2 = robot.calcularDistancia(esquinas[2][0], esquinas[2][1], robot.getX(), robot.getY());
+        double dist3 = robot.calcularDistancia(esquinas[3][0], esquinas[3][1], robot.getX(), robot.getY());
+
+        if (dist0 < dist1 && dist0 < dist2 && dist0 < dist3) {
+            esquinaActual = 0;
+        } else if (dist1 < dist2 && dist1 < dist3) {
+            esquinaActual = 1;
+        } else if (dist2 < dist3) {
+            esquinaActual = 2;
+        } else {
+            esquinaActual = 3;
+        }
+        robot.setDebugProperty("Esquina inicial", "Seleccionada esquina " + esquinaActual);
+    }
+
+    private void continuarTrayectoria() {
+        robot.setDebugProperty("Líder", "Moviéndose a la esquina " + esquinaActual);
+
+        // Moverse hacia la esquina actual
+        double targetX = esquinas[esquinaActual][0];
+        double targetY = esquinas[esquinaActual][1];
+
+        double angle = Math.atan2(targetX - robot.getX(), targetY - robot.getY());
+        robot.setTurnRightRadians(Utils.normalRelativeAngle(angle - robot.getHeadingRadians()));
+        robot.setAhead(robot.calcularDistancia(targetX, targetY, robot.getX(), robot.getY()));
+
+        // Comprobar si ha llegado a la esquina actual
+        if (haLlegadoAEsquina(targetX, targetY)) {
+            robot.setDebugProperty("Líder", "Esquina alcanzada: " + esquinaActual);
+            // Cambiar a la siguiente esquina dependiendo del sentido de rotación
+            if (sentidoHorario) {
+                esquinaActual = (esquinaActual - 1 + 4) % 4; // Sentido horario
+            } else {
+                esquinaActual = (esquinaActual + 1) % 4; // Sentido antihorario
+            }
+        }
     }
 
     // Método para seguir al robot inmediatamente superior en la jerarquía
@@ -66,50 +125,42 @@ public class Estat1 implements Estat {
                 double angle = Math.atan2(antecesorX - robot.getX(), antecesorY - robot.getY());
                 robot.setTurnRightRadians(Utils.normalRelativeAngle(angle - robot.getHeadingRadians()));
                 robot.setAhead(distancia - distanciaMinima);
-                robot.setDebugProperty("Estado", "Acelerando para alcanzar al antecesor");
             } else if (distancia < distanciaMinima) {
-                // Si está demasiado cerca, reducir la velocidad o moverse lateralmente
-                robot.setAhead(-distanciaMinima); // Retroceder ligeramente
-                robot.setDebugProperty("Estado", "Demasiado cerca, retrocediendo");
-                
-                // Ajustar el ángulo para no colisionar
-                robot.setTurnRight(30); // Pequeña corrección lateral
+                // Si está demasiado cerca, retroceder ligeramente
+                robot.setAhead(-distanciaMinima);
             } else {
-                // Seguir al antecesor manteniendo la distancia
+                // Mantener la distancia con el antecesor
                 double angle = Math.atan2(antecesorX - robot.getX(), antecesorY - robot.getY());
                 robot.setTurnRightRadians(Utils.normalRelativeAngle(angle - robot.getHeadingRadians()));
                 robot.setAhead(distancia - distanciaMinima);
-                robot.setDebugProperty("Estado", "Siguiendo al antecesor");
             }
         } else {
             // Si no se tiene la posición del antecesor, escanear en busca del antecesor
             robot.setTurnRadarRight(360); // Girar el radar para buscar al antecesor
-            robot.setDebugProperty("Estado", "Buscando al antecesor");
         }
     }
 
-    private void continuarTrayectoria() {
-        robot.setDebugProperty("Líder", "Moviéndose a la esquina " + esquinaActual);
-        // Moverse hacia la esquina actual
-        double targetX = esquinas[esquinaActual][0];
-        double targetY = esquinas[esquinaActual][1];
+    // Método que invierte la jerarquía y el sentido de rotación
+    private void invertirRolesYSentido() {
+        // Invertir el sentido de rotación
+        sentidoHorario = !sentidoHorario;
 
-        double angle = Math.atan2(targetX - robot.getX(), targetY - robot.getY());
-        robot.setTurnRightRadians(Utils.normalRelativeAngle(angle - robot.getHeadingRadians()));
-        robot.setAhead(robot.calcularDistancia(targetX, targetY, robot.getX(), robot.getY()));
+        // Invertir la jerarquía
+        java.util.Collections.reverse(jerarquia);
 
-        // Comprobar si ha llegado a la esquina actual
-        if (robot.calcularDistancia(robot.getX(), robot.getY(), targetX, targetY) < 25) {
-            robot.setDebugProperty("Líder", "Esquina alcanzada: " + esquinaActual);
-            esquinaActual = (esquinaActual + 1) % 4; // Cambia a la siguiente esquina
-        }
+        // Actualizar la posición del robot
+        miPosicion = jerarquia.indexOf(robot.getName());
+
+        // Reiniciar el seguimiento de esquinas
+        esquinaInicialSeleccionada = false; // Forzar la selección de una nueva esquina
+        robot.setDebugProperty("Cambio de roles", "Invertido sentido y roles. Nueva posición: " + miPosicion);
     }
+
 
     @Override
     public void onScannedRobot(ScannedRobotEvent e) {
         // Ignorar robots del mismo equipo
         if (robot.isTeammate(e.getName())) {
-            robot.setDebugProperty("Estado", "Compañero detectado, no esquivar");
             return;
         }
         
@@ -119,7 +170,6 @@ public class Estat1 implements Estat {
             double angleToEnemy = e.getBearing();
             robot.setTurnRight(angleToEnemy + 90); // Girar 90 grados para esquivar
             robot.setAhead(100); // Avanzar 100 unidades en la nueva dirección
-            robot.setDebugProperty("Estado", "Esquivando enemigo detectado");
         }
     }
 
@@ -127,14 +177,9 @@ public class Estat1 implements Estat {
     public void onHitRobot(HitRobotEvent e) {
         // Si choca con otro robot, esquivar solo si es enemigo
         if (!robot.isTeammate(e.getName())) {
-            robot.setDebugProperty("Estado", "Chocó con un enemigo, esquivando");
-
-            // Realizar un movimiento evasivo al chocar con un enemigo
             double angle = e.getBearing();
             robot.setTurnRight(angle + 90); // Girar 90 grados para esquivar
             robot.setAhead(100); // Avanzar 100 unidades en la nueva dirección
-        } else {
-            robot.setDebugProperty("Estado", "Chocó con un compañero, ignorando");
         }
     }
 
