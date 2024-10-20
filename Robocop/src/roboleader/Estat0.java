@@ -8,6 +8,7 @@ import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import robocode.HitRobotEvent;
+import robocode.RobotDeathEvent;
 
 public class Estat0 implements Estat {
     private Roboleader robot;
@@ -154,6 +155,11 @@ public class Estat0 implements Estat {
     public void onHitRobot(HitRobotEvent e) {
         // No se necesita implementar nada aquí en esta fase
     }
+    
+    public void onRobotDeath(RobotDeathEvent e) {
+        
+    }
+    
 
     // Método de pintura para resaltar al líder
     @Override
@@ -166,4 +172,5 @@ public class Estat0 implements Estat {
             g.drawOval(x, y, diameter, diameter);
         }
     }
+    
 }

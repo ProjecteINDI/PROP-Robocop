@@ -1,10 +1,14 @@
 package roboleader;
 
+import java.io.IOException;
 import robocode.ScannedRobotEvent;
 import robocode.HitRobotEvent;
 import robocode.MessageEvent;
 import robocode.util.Utils;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import robocode.RobotDeathEvent;
 
 public class Estat1 implements Estat {
     private Roboleader robot;
@@ -12,16 +16,21 @@ public class Estat1 implements Estat {
     private int miPosicion;         // Posición del robot en la jerarquía
     private boolean sentidoHorario = true; // Controla si el movimiento es en sentido horario o antihorario
     private long tiempoCambio;      // Controla el tiempo del último cambio de roles
-
+    private boolean ant=false;
     // Coordenadas de las esquinas del rectángulo
     private double[][] esquinas;
     private int esquinaActual = -1; // Índice de la esquina hacia la cual se dirige el robot (se inicializa en -1 para forzar la selección al inicio)
     private boolean esquinaInicialSeleccionada = false; // Bandera para asegurarse de que se seleccione la esquina al inicio
-
+    private boolean enemic=false;
     // Variables para mantener distancia prudencial
     private final double distanciaMinima = 100; // Distancia mínima de seguridad
     private final double distanciaMaxima = 200; // Distancia máxima antes de acelerar
-
+    private double enemigoX;
+    private double enemigoY;
+    private String enemigo=null;
+    private long tiempoUltimoEscaneo; // Controla el tiempo del último escaneo
+    private final long intervaloEscaneo = 2000;
+    
     public Estat1(Roboleader robot, List<String> jerarquia) {
         this.robot = robot;
         this.jerarquia = jerarquia;
@@ -54,10 +63,21 @@ public class Estat1 implements Estat {
                 seleccionarEsquinaMasCercana(); // Seleccionar la esquina más cercana al inicio
                 esquinaInicialSeleccionada = true; // Asegurarse de no volver a seleccionar
             }
-            continuarTrayectoria(); // Moverse por el rectángulo
-        } else {
-            seguirAntecesor(); // Los demás robots siguen al líder
+             continuarTrayectoria();
+           if (System.currentTimeMillis() - tiempoUltimoEscaneo >= intervaloEscaneo && !enemic) {
+            robot.setTurnRadarRight(360); // Hacer un barrido completo
+            tiempoUltimoEscaneo = System.currentTimeMillis(); // Reiniciar el temporizador de escaneo
         }
+        } else {
+            if(ant){
+            seguirAntecesor();    
+            }
+           
+        }
+         if(enemigo != null){
+            atacarEnemigo();
+        }
+        
 
         robot.execute();
     }
@@ -100,13 +120,20 @@ public class Estat1 implements Estat {
         // Comprobar si ha llegado a la esquina actual
         if (haLlegadoAEsquina(targetX, targetY)) {
             robot.setDebugProperty("Líder", "Esquina alcanzada: " + esquinaActual);
-            // Cambiar a la siguiente esquina dependiendo del sentido de rotación
+                String siguienteRobot = jerarquia.get(miPosicion + 1);
+                try {
+                    robot.sendMessage(siguienteRobot, "Cantonada");
+                } catch (IOException ex) {
+                    Logger.getLogger(Estat1.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            
             if (sentidoHorario) {
                 esquinaActual = (esquinaActual - 1 + 4) % 4; // Sentido horario
             } else {
                 esquinaActual = (esquinaActual + 1) % 4; // Sentido antihorario
             }
         }
+              
     }
 
     // Método para seguir al robot inmediatamente superior en la jerarquía
@@ -129,7 +156,14 @@ public class Estat1 implements Estat {
                 // Si está demasiado cerca, retroceder ligeramente
                 robot.setAhead(-distanciaMinima);
             } else {
-                // Mantener la distancia con el antecesor
+                if (miPosicion + 1 < jerarquia.size()) {
+                String siguienteRobot = jerarquia.get(miPosicion + 1);
+                    try {
+                        robot.sendMessage(siguienteRobot, "Cantonada");
+                    } catch (IOException ex) {
+                        Logger.getLogger(Estat1.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                }
                 double angle = Math.atan2(antecesorX - robot.getX(), antecesorY - robot.getY());
                 robot.setTurnRightRadians(Utils.normalRelativeAngle(angle - robot.getHeadingRadians()));
                 robot.setAhead(distancia - distanciaMinima);
@@ -138,6 +172,18 @@ public class Estat1 implements Estat {
             // Si no se tiene la posición del antecesor, escanear en busca del antecesor
             robot.setTurnRadarRight(360); // Girar el radar para buscar al antecesor
         }
+    }
+    private void atacarEnemigo() {
+        double targetX = enemigoX;
+        double targetY = enemigoY;
+        double targetAngle = Utils.normalRelativeAngle(Math.atan2(targetX - robot.getX(), targetY - robot.getY()));
+
+        robot.setTurnGunRight(targetAngle); // Girar hacia el enemigo
+        // Esperar a que el cañón esté alineado antes de disparar
+            if (Math.abs(Utils.normalRelativeAngle(targetAngle - robot.getGunHeadingRadians())) < Math.toRadians(10)) {
+            robot.setFire(1); // Disparar al enemigo
+        }
+
     }
 
     // Método que invierte la jerarquía y el sentido de rotación
@@ -163,13 +209,19 @@ public class Estat1 implements Estat {
         if (robot.isTeammate(e.getName())) {
             return;
         }
-        
-        // Si se detecta un enemigo en la trayectoria, realizar un movimiento evasivo
-        double distance = e.getDistance();
-        if (distance < distanciaMinima) {
-            double angleToEnemy = e.getBearing();
-            robot.setTurnRight(angleToEnemy + 90); // Girar 90 grados para esquivar
-            robot.setAhead(100); // Avanzar 100 unidades en la nueva dirección
+        else{
+            double angle = robot.getHeading() + e.getBearing();
+            enemigoX = robot.getX() + Math.sin(Math.toRadians(angle)) * e.getDistance(); // Distancia del enemic en el eix X amb el nostrte robot
+            enemigoY  = robot.getY() + Math.cos(Math.toRadians(angle)) * e.getDistance();
+
+            try {
+                robot.broadcastMessage("enemic: " + e.getName());
+                robot.broadcastMessage("y: " + enemigoX);
+                robot.broadcastMessage("y: " + enemigoY);
+            } catch (IOException ex) {
+                Logger.getLogger(Estat1.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            enemic=true;
         }
     }
 
@@ -185,7 +237,22 @@ public class Estat1 implements Estat {
 
     @Override
     public void onMessageReceived(MessageEvent e) {
-        // Manejar mensajes de otros robots
+        if (e.getMessage() instanceof String && e.getMessage().equals("Cantonada")) {
+             ant=true;
+            robot.setDebugProperty("LC", "lidercantonada");
+         }
+        if (e.getMessage() instanceof String) {
+            String mensaje = (String) e.getMessage();
+            if (mensaje.startsWith("enemic:")) {
+                        enemigo = mensaje.split(":")[1];
+            }
+            if (mensaje.startsWith("x:")) {
+                        enemigoX = Double.parseDouble(mensaje.split(":")[1].trim());
+            }
+            if (mensaje.startsWith("y:")) {
+                        enemigoY = Double.parseDouble(mensaje.split(":")[1].trim());
+            }
+        }
     }
 
     @Override
@@ -197,4 +264,16 @@ public class Estat1 implements Estat {
             g.drawLine((int)esquinas[i][0], (int)esquinas[i][1], (int)esquinas[next][0], (int)esquinas[next][1]);
         }
     }
+    @Override
+    public void onRobotDeath(RobotDeathEvent e) {
+         if(robot.isTeammate(e.getName())){
+            int indiceMuerto = jerarquia.indexOf(e.getName());
+            if(miPosicion>indiceMuerto){
+             miPosicion--;
+         }
+        }
+
+    }
 }
+    
+   

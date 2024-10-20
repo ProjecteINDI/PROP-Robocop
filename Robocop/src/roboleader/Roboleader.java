@@ -9,6 +9,7 @@ import java.util.logging.Logger;
 import robocode.ScannedRobotEvent;
 import robocode.HitRobotEvent;
 import robocode.MessageEvent;
+import robocode.RobotDeathEvent;
 import robocode.TeamRobot;
 
 public class Roboleader extends TeamRobot {
@@ -45,6 +46,10 @@ public class Roboleader extends TeamRobot {
     @Override
     public void onHitRobot(HitRobotEvent e) {
         estatActual.onHitRobot(e); // Redirige el evento al estado
+    }
+    @Override
+    public void onRobotDeath(RobotDeathEvent e) {
+        estatActual.onRobotDeath(e);
     }
 
     @Override
