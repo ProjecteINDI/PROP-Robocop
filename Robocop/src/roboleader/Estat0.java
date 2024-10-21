@@ -10,10 +10,12 @@ import java.util.logging.Logger;
 import robocode.HitRobotEvent;
 import robocode.RobotDeathEvent;
 
+/**
+ * Estat0 gestiona la elecció del líder entre els robots i calcula les distàncies cap al líder.
+ */
 public class Estat0 implements Estat {
     private Roboleader robot;
     private boolean isLeaderElected = false;
-
     private int randomNumber;
     private String leaderName = null;
     private Map<String, Integer> randomNum;
@@ -22,10 +24,12 @@ public class Estat0 implements Estat {
     private double nummax = 0;
     private double leaderX, leaderY;
     private boolean hallegado = false;
-    
-    // Variables para los robots en orden
     private List<String> jerarquia;
 
+    /**
+     * Constructor que inicialitza l'estat amb el robot corresponent.
+     * @param robot Instància del robot Roboleader.
+     */
     public Estat0(Roboleader robot) {
         this.robot = robot;
         this.randomNumber = new Random().nextInt(100);
@@ -35,11 +39,15 @@ public class Estat0 implements Estat {
         randomNum.put(robot.getName(), randomNumber);
     }
 
+    /**
+     * Executa les accions associades a l'estat actual.
+     * Gestiona la selecció del líder i el càlcul de distàncies.
+     */
     @Override
     public void execute() {
         robot.setDebugProperty("ESTAT", String.valueOf(robot.lider));
 
-        // Enviar el número aleatorio si aún no se ha elegido líder
+        // Enviar el número aleatori si no s'ha elegit líder
         if (!isLeaderElected) {
             try {
                 robot.broadcastMessage(randomNumber);
@@ -48,7 +56,7 @@ public class Estat0 implements Estat {
             }
         }
 
-        // Elegir al líder
+        // Elecció del líder
         if (randomNum.size() == size && !isLeaderElected) {
             nummax = -1;
             for (Map.Entry<String, Integer> entry : randomNum.entrySet()) {
@@ -61,14 +69,14 @@ public class Estat0 implements Estat {
             isLeaderElected = true;
             robot.setDebugProperty("leader", String.valueOf(leaderName));
 
-            // Difundir quién es el líder
+            // Difondre el nom del líder
             try {
                 robot.broadcastMessage("LEADER:" + leaderName);
             } catch (IOException ex) {
                 Logger.getLogger(Estat0.class.getName()).log(Level.SEVERE, null, ex);
             }
 
-            // Si este robot es el líder, difunde su posición
+            // Si aquest robot és el líder, difon la seva posició
             if (robot.lider) {
                 leaderX = robot.getX();
                 leaderY = robot.getY();
@@ -81,7 +89,7 @@ public class Estat0 implements Estat {
             }
         }
 
-        // Calcular distancias hacia el líder si este ha sido elegido
+        // Calcular distàncies si el líder ha estat elegit
         if (isLeaderElected && hallegado) {
             double distancia = robot.calcularDistancia(robot.getX(), robot.getY(), leaderX, leaderY);
             try {
@@ -92,28 +100,29 @@ public class Estat0 implements Estat {
             distancias.put(robot.getName(), distancia);
         }
 
-        // Ordenar los robots una vez recibidas todas las distancias
+        // Ordenar robots un cop s'han rebut totes les distàncies
         if (distancias.size() == (size - 1)) {
             List<Map.Entry<String, Double>> distanciaList = new ArrayList<>(distancias.entrySet());
-
-            // Ordenar por distancia (burbuja mejorable, pero funcional aquí)
             distanciaList.sort(Map.Entry.comparingByValue());
 
-            // Añadir los robots en orden jerárquico
-            jerarquia.add(leaderName);  // Añadir el líder primero
+            jerarquia.add(leaderName);  // Afegir líder
             for (Map.Entry<String, Double> entry : distanciaList) {
-                jerarquia.add(entry.getKey());  // Añadir el resto en orden de distancia
+                jerarquia.add(entry.getKey());  // Afegir la resta
             }
 
-            // Mostrar jerarquía en debug
-            robot.setDebugProperty("Nombres ordenados por distancia", String.join(", ", jerarquia));
+            // Mostrar jerarquia en debug
+            robot.setDebugProperty("Nombres ordenats per distància", String.join(", ", jerarquia));
 
-            // Cambiar al Estado 1 y pasar la jerarquía
+            // Canviar a Estat 1
             robot.canviEstat(new Estat1(robot, jerarquia));
         }
         robot.execute();
     }
 
+    /**
+     * Gestiona la recepció de missatges.
+     * @param e Esdeveniment de missatge rebut.
+     */
     @Override
     public void onMessageReceived(MessageEvent e) {
         if (e.getMessage() instanceof Integer) {
@@ -123,7 +132,6 @@ public class Estat0 implements Estat {
         if (e.getMessage() instanceof String) {
             String mensaje = (String) e.getMessage();
 
-            // Procesar el mensaje del líder
             if (mensaje.startsWith("LEADER:")) {
                 leaderName = mensaje.split(":")[1];
                 robot.lider = leaderName.equals(robot.getName());
@@ -131,7 +139,6 @@ public class Estat0 implements Estat {
                 robot.setDebugProperty("leader", leaderName);
             }
 
-            // Recibir coordenadas del líder
             if (mensaje.startsWith("X:")) {
                 leaderX = Double.parseDouble(mensaje.split(":")[1]);
             }
@@ -148,20 +155,22 @@ public class Estat0 implements Estat {
 
     @Override
     public void onScannedRobot(ScannedRobotEvent e) {
-        // No se necesita implementar nada aquí en esta fase
+        // No s'implementa res aquí en aquesta fase
     }
 
     @Override
     public void onHitRobot(HitRobotEvent e) {
-        // No se necesita implementar nada aquí en esta fase
+        // No s'implementa res aquí en aquesta fase
     }
     
     public void onRobotDeath(RobotDeathEvent e) {
-        
+        // No s'implementa res aquí en aquesta fase
     }
-    
 
-    // Método de pintura para resaltar al líder
+    /**
+     * Dibuixa un cercle per ressaltar al líder.
+     * @param g Gràfics per a la pintura.
+     */
     @Override
     public void onPaint(java.awt.Graphics2D g) {
         if (robot.lider) {
@@ -170,7 +179,7 @@ public class Estat0 implements Estat {
             int x = (int) (leaderX - diameter / 2);
             int y = (int) (leaderY - diameter / 2);
             g.drawOval(x, y, diameter, diameter);
+            g.drawString("Jo sóc el líder!", (int) robot.getX(), (int) robot.getY() + 15);
         }
     }
-    
 }
