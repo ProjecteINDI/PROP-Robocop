@@ -11,8 +11,8 @@ import java.util.logging.Logger;
 import robocode.RobotDeathEvent;
 
 /**
- * @author Oscar Màrquez i Sergi Cabezas
  * Classe que representa l'estat 1 del robot líder, on es realitzen tasques de seguiment i combat.
+ * @author Oscar Màrquez i Sergi Cabezas
  */
 public class Estat1 implements Estat {
     private Roboleader robot;

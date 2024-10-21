@@ -4,8 +4,8 @@ import robocode.HitRobotEvent;
 import robocode.ScannedRobotEvent;
 
 /**
- * @author Oscar Màrquez i Sergi Cabezas
  * Estat inicial del robot Robocop. Escaneja contínuament per detectar enemics.
+ * @author Oscar Màrquez i Sergi Cabezas
  */
 public class Estat0 implements Estat {
     private Robocop robot;

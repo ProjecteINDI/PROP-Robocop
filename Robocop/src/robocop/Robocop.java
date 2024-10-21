@@ -5,9 +5,8 @@ import robocode.ScannedRobotEvent;
 import robocode.HitRobotEvent;
 
 /**
- * @author Oscar Màrquez i Sergi Cabezas
  * Classe principal del robot Robocop, que extén AdvancedRobot.
- * 
+ * @author Oscar Màrquez i Sergi Cabezas
  */
 public class Robocop extends AdvancedRobot {
     public double eX, eY;

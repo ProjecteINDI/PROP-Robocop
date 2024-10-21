@@ -7,8 +7,8 @@ import robocode.MessageEvent;
 import robocode.RobotDeathEvent;
 
 /**
- * @author Oscar Màrquez i Sergi Cabezas
  * Interface que representa un estat del robot líder.
+ * @author Oscar Màrquez i Sergi Cabezas
  */
 public interface Estat {
     /**

@@ -4,8 +4,8 @@ import robocode.ScannedRobotEvent;
 import robocode.HitRobotEvent;
 
 /**
- * @author Oscar Màrquez i Sergi Cabezas
  * Classe que implementa l'estat específic del robot.
+ * @author Oscar Màrquez i Sergi Cabezas
  */
 public class Estat2 implements Estat {
     private Robocop robot;

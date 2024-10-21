@@ -4,8 +4,8 @@ import robocode.ScannedRobotEvent;
 import robocode.HitRobotEvent;
 
 /**
- * @author Oscar Màrquez i Sergi Cabezas
  * Interface que representa un estat del robot.
+ * @author Oscar Màrquez i Sergi Cabezas
  */
 public interface Estat {
     /**

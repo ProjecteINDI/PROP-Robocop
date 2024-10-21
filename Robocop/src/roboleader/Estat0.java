@@ -12,6 +12,7 @@ import robocode.RobotDeathEvent;
 
 /**
  * Estat0 gestiona la elecció del líder entre els robots i calcula les distàncies cap al líder.
+ * @author Oscar Màrquez i Sergi Cabezas
  */
 public class Estat0 implements Estat {
     private Roboleader robot;

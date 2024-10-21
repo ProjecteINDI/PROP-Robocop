@@ -4,8 +4,8 @@ import robocode.ScannedRobotEvent;
 import robocode.HitRobotEvent;
 
 /**
- * @author Oscar Màrquez i Sergi Cabezas
  * Estat en què el robot es mou cap a una cantonada mentre esquiva obstacles.
+ * @author Oscar Màrquez i Sergi Cabezas
  */
 public class Estat1 implements Estat {
     private Robocop robot;
