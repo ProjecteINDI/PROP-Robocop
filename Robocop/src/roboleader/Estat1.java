@@ -12,75 +12,118 @@ import robocode.RobotDeathEvent;
 
 public class Estat1 implements Estat {
     private Roboleader robot;
-    private List<String> jerarquia; // Lista de la jerarquía de robots
-    private int miPosicion;         // Posición del robot en la jerarquía
-    private boolean sentidoHorario = true; // Controla si el movimiento es en sentido horario o antihorario
-    private long tiempoCambio;      // Controla el tiempo del último cambio de roles
-    private boolean ant=false;
-    // Coordenadas de las esquinas del rectángulo
+    private List<String> jerarquia; 
+    private int miPosicion;
+    private boolean sentidoHorario = true; 
+    private long tiempoCambio;
+    private boolean ant = false;
+
+    // Esquivar y colisiones
+    public boolean chocar = false;
+    public boolean esquivar = false;
+    public boolean esquivarCompletado = false;
+    public double esquivarTargetX, esquivarTargetY;
+    private double esquivarAngle = 40;  // Ángulo para esquivar a derecha o izquierda
+    public double dis;
+    public double distanciaTangente;
+    public double chocaDir = 0;  // Dirección de colisión
+
+    // Coordenadas y movimiento
     private double[][] esquinas;
-    private int esquinaActual = -1; // Índice de la esquina hacia la cual se dirige el robot (se inicializa en -1 para forzar la selección al inicio)
-    private boolean esquinaInicialSeleccionada = false; // Bandera para asegurarse de que se seleccione la esquina al inicio
-    private boolean enemic=false;
-    // Variables para mantener distancia prudencial
-    private final double distanciaMinima = 100; // Distancia mínima de seguridad
-    private final double distanciaMaxima = 200; // Distancia máxima antes de acelerar
+    private int esquinaActual = -1; 
+    private boolean esquinaInicialSeleccionada = false;
+    private boolean enemic = false;
+    private final double distanciaMinima = 100;
+    private final double distanciaMaxima = 200;
     private double enemigoX;
     private double enemigoY;
-    private String enemigo=null;
-    private long tiempoUltimoEscaneo; // Controla el tiempo del último escaneo
+    private String enemigo = null;
+    private long tiempoUltimoEscaneo;
     private final long intervaloEscaneo = 2000;
     
     public Estat1(Roboleader robot, List<String> jerarquia) {
         this.robot = robot;
         this.jerarquia = jerarquia;
-        this.miPosicion = jerarquia.indexOf(robot.getName()); // Obtener la posición del robot en la jerarquía
+        this.miPosicion = jerarquia.indexOf(robot.getName()); 
 
         double marginX = robot.battlefieldWidth * 0.1;
         double marginY = robot.battlefieldHeight * 0.1;
 
-        // Definir las 4 esquinas del rectángulo (sentido horario)
         esquinas = new double[][]{
-            {marginX, marginY},                                        // Esquina inferior izquierda
-            {robot.battlefieldWidth - marginX, marginY},                // Esquina inferior derecha
-            {robot.battlefieldWidth - marginX, robot.battlefieldHeight - marginY}, // Esquina superior derecha
-            {marginX, robot.battlefieldHeight - marginY}                // Esquina superior izquierda
+            {marginX, marginY},                                        
+            {robot.battlefieldWidth - marginX, marginY},                
+            {robot.battlefieldWidth - marginX, robot.battlefieldHeight - marginY}, 
+            {marginX, robot.battlefieldHeight - marginY}                
         };
 
-        tiempoCambio = System.currentTimeMillis(); // Inicializa el tiempo del primer cambio de roles
+        tiempoCambio = 100;
     }
-
+    
     @Override
     public void execute() {
-        // Verificar si han pasado 15 segundos para invertir roles y sentido
         if ((System.currentTimeMillis() - tiempoCambio) >= 15000) {
-            invertirRolesYSentido(); // Invertir roles y sentido de rotación
-            tiempoCambio = System.currentTimeMillis(); // Reiniciar el temporizador
+            invertirRolesYSentido();
+            tiempoCambio = System.currentTimeMillis();
         }
 
         if (miPosicion == 0) {
+            robot.setTurnRadarRight(robot.normAngle(robot.getHeading() - robot.getRadarHeading()));
+
             if (!esquinaInicialSeleccionada) {
-                seleccionarEsquinaMasCercana(); // Seleccionar la esquina más cercana al inicio
-                esquinaInicialSeleccionada = true; // Asegurarse de no volver a seleccionar
+                seleccionarEsquinaMasCercana(); 
+                esquinaInicialSeleccionada = true; 
             }
-             continuarTrayectoria();
-           if (System.currentTimeMillis() - tiempoUltimoEscaneo >= intervaloEscaneo && !enemic) {
-            robot.setTurnRadarRight(360); // Hacer un barrido completo
-            tiempoUltimoEscaneo = System.currentTimeMillis(); // Reiniciar el temporizador de escaneo
-        }
+            continuarTrayectoria();
+            if (System.currentTimeMillis() - tiempoUltimoEscaneo >= intervaloEscaneo && !enemic) {
+                robot.setTurnRadarRight(360);
+                tiempoUltimoEscaneo = System.currentTimeMillis();
+            }
         } else {
-            if(ant){
-            seguirAntecesor();    
+            if (ant) {
+                seguirAntecesor();    
             }
-           
         }
-         if(enemigo != null){
+
+        // Comprobar si hay un enemigo
+        if (enemigo != null) {
             atacarEnemigo();
         }
         
+        
+        if (esquivar) {
+            double angleEsquiva = Math.toDegrees(Math.atan2(esquivarTargetX - robot.getX(), esquivarTargetY - robot.getY())) - robot.getHeading();
+            robot.setTurnRight(robot.normAngle(angleEsquiva));
+            robot.setAhead(Math.hypot(esquivarTargetX - robot.getX(), esquivarTargetY - robot.getY()) - 10);
+
+            // Comprobación de finalización del esquive
+            if (Math.abs(robot.getX() - esquivarTargetX) < 20 && Math.abs(robot.getY() - esquivarTargetY) < 20) {
+                esquivar = false;
+                esquivarCompletado = true;
+                
+                if(miPosicion == 0){
+                    continuarTrayectoria();
+                }else{
+                    seguirAntecesor();
+                }
+            }
+
+            
+        }
+
+        // Gestión de colisiones con compañeros
+        if (chocar) {
+            if (chocaDir > 0) {
+                robot.setTurnLeft(esquivarAngle);
+            } else {
+                robot.setTurnRight(esquivarAngle);
+            }
+            robot.setAhead(50); 
+            chocar = false; 
+        }
 
         robot.execute();
     }
+
 
     // Detecta si el robot ha llegado a la esquina actual
     private boolean haLlegadoAEsquina(double targetX, double targetY) {
@@ -113,27 +156,39 @@ public class Estat1 implements Estat {
         double targetX = esquinas[esquinaActual][0];
         double targetY = esquinas[esquinaActual][1];
 
+        // Calcular el ángulo hacia la esquina
         double angle = Math.atan2(targetX - robot.getX(), targetY - robot.getY());
-        robot.setTurnRightRadians(Utils.normalRelativeAngle(angle - robot.getHeadingRadians()));
+        double angleToTurn = Utils.normalRelativeAngle(angle - robot.getHeadingRadians());
+
+        // Primero giramos sin avanzar
+        if (Math.abs(angleToTurn) > Math.toRadians(1)) {
+            robot.setTurnRightRadians(angleToTurn);
+            // No avanzamos mientras giramos
+            return;
+        }
+
+        // Una vez orientados correctamente, avanzamos hacia la esquina
         robot.setAhead(robot.calcularDistancia(targetX, targetY, robot.getX(), robot.getY()));
 
         // Comprobar si ha llegado a la esquina actual
         if (haLlegadoAEsquina(targetX, targetY)) {
             robot.setDebugProperty("Líder", "Esquina alcanzada: " + esquinaActual);
-                String siguienteRobot = jerarquia.get(miPosicion + 1);
-                try {
-                    robot.sendMessage(siguienteRobot, "Cantonada");
-                } catch (IOException ex) {
-                    Logger.getLogger(Estat1.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            
-            if (sentidoHorario) {
+
+            // Enviar mensaje al siguiente robot en la jerarquía
+            String siguienteRobot = jerarquia.get(miPosicion + 1);
+            try {
+                robot.sendMessage(siguienteRobot, "Cantonada");
+            } catch (IOException ex) {
+                Logger.getLogger(Estat1.class.getName()).log(Level.SEVERE, null, ex);
+            }
+
+            // Cambiar a la siguiente esquina
+            if (!sentidoHorario) {
                 esquinaActual = (esquinaActual - 1 + 4) % 4; // Sentido horario
             } else {
                 esquinaActual = (esquinaActual + 1) % 4; // Sentido antihorario
             }
         }
-              
     }
 
     // Método para seguir al robot inmediatamente superior en la jerarquía
@@ -173,18 +228,6 @@ public class Estat1 implements Estat {
             robot.setTurnRadarRight(360); // Girar el radar para buscar al antecesor
         }
     }
-    private void atacarEnemigo() {
-        double targetX = enemigoX;
-        double targetY = enemigoY;
-        double targetAngle = Utils.normalRelativeAngle(Math.atan2(targetX - robot.getX(), targetY - robot.getY()));
-
-        robot.setTurnGunRight(targetAngle); // Girar hacia el enemigo
-        // Esperar a que el cañón esté alineado antes de disparar
-            if (Math.abs(Utils.normalRelativeAngle(targetAngle - robot.getGunHeadingRadians())) < Math.toRadians(10)) {
-            robot.setFire(1); // Disparar al enemigo
-        }
-
-    }
 
     // Método que invierte la jerarquía y el sentido de rotación
     private void invertirRolesYSentido() {
@@ -203,36 +246,95 @@ public class Estat1 implements Estat {
     }
 
 
-    @Override
+   @Override
     public void onScannedRobot(ScannedRobotEvent e) {
         // Ignorar robots del mismo equipo
         if (robot.isTeammate(e.getName())) {
             return;
         }
-        else{
-            double angle = robot.getHeading() + e.getBearing();
-            enemigoX = robot.getX() + Math.sin(Math.toRadians(angle)) * e.getDistance(); // Distancia del enemic en el eix X amb el nostrte robot
-            enemigoY  = robot.getY() + Math.cos(Math.toRadians(angle)) * e.getDistance();
 
+        // Esquivar si el enemigo está en trayectoria y cerca
+        if (Math.abs(e.getBearing()) < 10 && e.getDistance() <= 200 && !esquivarCompletado) {
+            esquivar = true;
+            dis = e.getDistance();
+
+            double angleEsquivarDerecha = esquivarAngle;
+            distanciaTangente = Math.tan(Math.toRadians(angleEsquivarDerecha)) * dis;
+
+            double angleDerecha = robot.getHeading() + angleEsquivarDerecha;
+            esquivarTargetX = robot.getX() + Math.sin(Math.toRadians(angleDerecha)) * distanciaTangente;
+            esquivarTargetY = robot.getY() + Math.cos(Math.toRadians(angleDerecha)) * distanciaTangente;
+
+            // Verificar si el punto de esquiva está fuera del campo de batalla
+            if (esquivarTargetX < 20 || esquivarTargetX > robot.battlefieldWidth - 20 || 
+                esquivarTargetY < 20 || esquivarTargetY > robot.battlefieldHeight - 20) {
+                double angleIzquierda = robot.getHeading() - esquivarAngle;
+                esquivarTargetX = robot.getX() + Math.sin(Math.toRadians(angleIzquierda)) * distanciaTangente;
+                esquivarTargetY = robot.getY() + Math.cos(Math.toRadians(angleIzquierda)) * distanciaTangente;
+                robot.setTurnLeft(esquivarAngle);
+            } else {
+                robot.setTurnRight(esquivarAngle);
+            }
+
+            // Avanzar hacia el objetivo de esquiva
+            robot.setAhead(distanciaTangente);
+        }
+
+        // Lógica de disparo
+        if (!enemic) {
+            enemigo = e.getName();
+            enemic = true;
+
+            // Calcular las coordenadas del enemigo
+            double angle = robot.getHeading() + e.getBearing();
+            enemigoX = robot.getX() + Math.sin(Math.toRadians(angle)) * e.getDistance(); 
+            enemigoY = robot.getY() + Math.cos(Math.toRadians(angle)) * e.getDistance();
+
+            // Enviar las coordenadas del enemigo al equipo
             try {
                 robot.broadcastMessage("enemic: " + e.getName());
-                robot.broadcastMessage("y: " + enemigoX);
+                robot.broadcastMessage("x: " + enemigoX);
                 robot.broadcastMessage("y: " + enemigoY);
             } catch (IOException ex) {
                 Logger.getLogger(Estat1.class.getName()).log(Level.SEVERE, null, ex);
             }
-            enemic=true;
+            robot.setDebugProperty("Nuevo objetivo", "Fijado enemigo: " + enemigo);
+        }
+
+        // Llamar a la función de atacar enemigo
+        atacarEnemigo();
+    }
+
+    private void atacarEnemigo() {
+        // Calculamos el ángulo hacia el enemigo usando las coordenadas
+        double targetX = enemigoX;
+        double targetY = enemigoY;
+
+        // Calcular el ángulo absoluto hacia el enemigo
+        double angleToEnemy = Math.atan2(targetX - robot.getX(), targetY - robot.getY());
+        double gunTurnAngle = Utils.normalRelativeAngle(angleToEnemy - robot.getGunHeadingRadians());
+
+        // Depurar la dirección actual del cañón y el ángulo de giro necesario
+        robot.setDebugProperty("Apuntando", "Angulo hacia enemigo: " + Math.toDegrees(angleToEnemy) + 
+                               " | Angulo del cañon: " + Math.toDegrees(robot.getGunHeadingRadians()) + 
+                               " | Necesario girar: " + Math.toDegrees(gunTurnAngle));
+
+        // Girar el cañón hacia el enemigo
+        robot.setTurnGunRightRadians(gunTurnAngle);
+
+        // Esperar a que el cañón esté alineado antes de disparar
+        if (Math.abs(gunTurnAngle) < Math.toRadians(10)) {
+            robot.setFire(1); // Disparar al enemigo cuando el cañón está alineado
         }
     }
+    
+    
 
     @Override
     public void onHitRobot(HitRobotEvent e) {
-        // Si choca con otro robot, esquivar solo si es enemigo
-        if (!robot.isTeammate(e.getName())) {
-            double angle = e.getBearing();
-            robot.setTurnRight(angle + 90); // Girar 90 grados para esquivar
-            robot.setAhead(100); // Avanzar 100 unidades en la nueva dirección
-        }
+        chocar = true;  // Activa la señal de colisión
+        chocaDir = e.getBearing();  // Guardamos la dirección de colisión
+        
     }
 
     @Override
@@ -266,14 +368,25 @@ public class Estat1 implements Estat {
     }
     @Override
     public void onRobotDeath(RobotDeathEvent e) {
-         if(robot.isTeammate(e.getName())){
-            int indiceMuerto = jerarquia.indexOf(e.getName());
-            if(miPosicion>indiceMuerto){
-             miPosicion--;
-         }
+        // Si el robot que ha muerto es un enemigo (no un compañero)
+        if (!robot.isTeammate(e.getName())) {
+            robot.setDebugProperty("Estado", "Enemigo " + e.getName() + " destruido. Escaneando nuevo objetivo.");
+            enemigo = null;  // Reiniciar el enemigo actual
+            enemic = false;  // No hay enemigo activo
+
+            // Realizar un escaneo completo con el radar para buscar otro enemigo
+            robot.setTurnRadarRight(360);
         }
 
+        // Si un compañero ha muerto, actualizar la jerarquía
+        if (robot.isTeammate(e.getName())) {
+            int indiceMuerto = jerarquia.indexOf(e.getName());
+            if (miPosicion > indiceMuerto) {
+                miPosicion--;
+            }
+        }
     }
+
 }
     
    
